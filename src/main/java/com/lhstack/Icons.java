@@ -22,4 +22,12 @@ public interface Icons {
     Icon SAVE = IconLoader.findIcon(Icons.class.getClassLoader().getResource("icons/save.svg"));
 
     Icon RESAVE = IconLoader.findIcon(Icons.class.getClassLoader().getResource("icons/resave.svg"));
+
+    Icon ROOT = IconLoader.findIcon(Icons.class.getClassLoader().getResource("icons/root.svg"));
+
+    Icon TEMPLATE = IconLoader.findIcon(Icons.class.getClassLoader().getResource("icons/template.svg"));
+
+    Icon IMPORT2 = IconLoader.findIcon(Icons.class.getClassLoader().getResource("icons/import2.svg"));
+
+    Icon CERTIFICATE = IconLoader.findIcon(Icons.class.getClassLoader().getResource("icons/certificate.svg"));
 }

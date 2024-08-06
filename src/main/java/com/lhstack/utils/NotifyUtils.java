@@ -1,4 +1,4 @@
-package com.lhstack;
+package com.lhstack.utils;
 
 import com.intellij.notification.Notification;
 import com.intellij.notification.NotificationType;

@@ -1,22 +1,24 @@
-package com.lhstack;
+package com.lhstack.utils;
 
 import com.intellij.openapi.vfs.VirtualFile;
+import com.lhstack.Item;
 import org.apache.commons.collections.EnumerationUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.bouncycastle.jce.X509Principal;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import org.bouncycastle.util.io.pem.PemObject;
-import org.bouncycastle.util.io.pem.PemWriter;
+import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
+import org.bouncycastle.x509.X509V3CertificateGenerator;
 
 import javax.swing.*;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.OutputStreamWriter;
-import java.security.Key;
-import java.security.KeyStore;
-import java.security.PrivateKey;
-import java.security.Security;
+import java.math.BigInteger;
+import java.security.*;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateFactory;
+import java.time.Duration;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.function.Supplier;
@@ -24,7 +26,37 @@ import java.util.function.Supplier;
 public class CertificateUtils {
 
     static {
-        Security.addProvider(new BouncyCastleProvider());
+        Provider provider = Security.getProvider(BouncyCastleProvider.PROVIDER_NAME);
+        if (provider == null) {
+            Security.addProvider(new BouncyCastleProvider());
+        }
+    }
+
+
+    /**
+     * 生成证书
+     * SignatureAlgorithm: RSA=SHA256WithRSAEncryption EC=SHA256withECDSA
+     *
+     * @param algorithm 算法 RSA,EC
+     * @param dn        DN CN=www.lhstack.com(域名或者ip), O=(组织或者企业), L=(市), ST=(省), C=(国家), OU=(部门)
+     * @param period    时期
+     * @return {@link Certificate}
+     */
+    public static Certificate gen(String algorithm, String dn, Duration period) throws Exception{
+        KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance(algorithm);
+        KeyPair keyPair = keyPairGenerator.generateKeyPair();
+        X509V3CertificateGenerator v3CertGen =  new X509V3CertificateGenerator();
+        v3CertGen.setSerialNumber(BigInteger.valueOf(System.currentTimeMillis()));
+        v3CertGen.setIssuerDN(new X509Principal(dn));
+        v3CertGen.setNotBefore(new Date(System.currentTimeMillis() - 1000L * 60 * 60 * 24));
+        v3CertGen.setNotAfter(new Date(System.currentTimeMillis() + period.toMillis()));
+        v3CertGen.setSubjectDN(new X509Principal(dn));
+        v3CertGen.setPublicKey(keyPair.getPublic());
+        v3CertGen.setSignatureAlgorithm("SHA256withECDSA");
+        //[ext] 多域名证书格式
+        //subjectAltName = DNS:www.1111.com,DNS:www.2222.com,DNS:www.3333.com,IP:192.168.1.1
+//        v3CertGen.addExtension("subjectAltName",true, new DERUTF8String(dn));
+        return v3CertGen.generateX509Certificate(keyPair.getPrivate());
     }
 
     public static byte[] export(Supplier<KeyStore> keyStoreSupplier, Supplier<char[]> passwordSupplier, List<Item> items, String type) throws Exception {
@@ -47,7 +79,7 @@ public class CertificateUtils {
                 if (items.size() > 1) {
                     throw new RuntimeException("pkcs8只支持单个证书导出");
                 }
-                return pkcs8Export(keyStoreSupplier,passwordSupplier,items);
+                return pkcs8Export(keyStoreSupplier, passwordSupplier, items);
             }
             case "jks":
             default: {
@@ -59,7 +91,7 @@ public class CertificateUtils {
     private static byte[] pkcs8Export(Supplier<KeyStore> keyStoreSupplier, Supplier<char[]> passwordSupplier, List<Item> items) throws Exception {
         Item item = items.get(0);
         Key key = keyStoreSupplier.get().getKey(item.getName(), passwordSupplier.get());
-        if(key instanceof PrivateKey){
+        if (key instanceof PrivateKey) {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             byte[] encoded = key.getEncoded();
             baos.write(encoded);
@@ -91,9 +123,9 @@ public class CertificateUtils {
 
     private static byte[] pemExport(List<Item> items) throws Exception {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        PemWriter pemWriter = new PemWriter(new OutputStreamWriter(baos));
+        JcaPEMWriter pemWriter = new JcaPEMWriter(new OutputStreamWriter(baos));
         for (Item item : items) {
-            pemWriter.writeObject(new PemObject("CERTIFICATE", item.getCertificate().getEncoded()));
+            pemWriter.writeObject(item.getCertificate());
         }
         pemWriter.close();
         return baos.toByteArray();

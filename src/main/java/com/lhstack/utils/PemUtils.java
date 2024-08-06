@@ -1,0 +1,46 @@
+package com.lhstack.utils;
+
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
+
+import java.io.ByteArrayOutputStream;
+import java.io.FileOutputStream;
+import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
+import java.security.Provider;
+import java.security.Security;
+
+public class PemUtils {
+
+    static {
+        Provider provider = Security.getProvider(BouncyCastleProvider.PROVIDER_NAME);
+        if (provider == null) {
+            Security.addProvider(new BouncyCastleProvider());
+        }
+    }
+
+
+    /**
+     * 到字符串
+     *
+     * @param object 对象 Certificate | PrivateKey
+     * @return {@link String}
+     * @throws Exception 例外
+     */
+    public static String toString(Object object) throws Exception {
+        ByteArrayOutputStream bo = new ByteArrayOutputStream();
+        JcaPEMWriter pemWriter = new JcaPEMWriter(new OutputStreamWriter(bo));
+        pemWriter.writeObject(object);
+        pemWriter.close();
+        bo.close();
+        return bo.toString(StandardCharsets.UTF_8);
+    }
+
+    public static void pemWriter(Object object, String path) throws Exception {
+        FileOutputStream fileOutputStream = new FileOutputStream(path);
+        JcaPEMWriter pemWriter = new JcaPEMWriter(new OutputStreamWriter(fileOutputStream));
+        pemWriter.writeObject(object);
+        pemWriter.close();
+        fileOutputStream.close();
+    }
+}

@@ -7,7 +7,7 @@ import com.intellij.ui.table.TableView;
 import com.intellij.util.ui.ListTableModel;
 import com.lhstack.Icons;
 import com.lhstack.Item;
-import com.lhstack.NotifyUtils;
+import com.lhstack.utils.NotifyUtils;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
