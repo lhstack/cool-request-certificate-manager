@@ -5,6 +5,7 @@ import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.Service;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
+import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
 
 @State(name = "data",storages = {@Storage("CoolRequestCertificateManager.xml")})
@@ -13,8 +14,21 @@ public final class ProjectState implements PersistentStateComponent<ProjectState
 
     private @NotNull ProjectState.State state = new State();
 
+    /**
+     * 全局
+     * @return
+     */
     public static ProjectState getInstance() {
         return ApplicationManager.getApplication().getService(ProjectState.class);
+    }
+
+    /**
+     * 项目
+     * @param project
+     * @return
+     */
+    public static ProjectState getInstance(Project project) {
+        return project.getService(ProjectState.class);
     }
 
     @Override
@@ -30,6 +44,50 @@ public final class ProjectState implements PersistentStateComponent<ProjectState
     public static class State {
 
         private String configYaml;
+
+        private String caPem;
+
+        private String caKeyPem;
+
+        private String certificatePem;
+
+        private String certificateKeyPem;
+
+        public String getCaPem() {
+            return caPem;
+        }
+
+        public State setCaPem(String caPem) {
+            this.caPem = caPem;
+            return this;
+        }
+
+        public String getCaKeyPem() {
+            return caKeyPem;
+        }
+
+        public State setCaKeyPem(String caKeyPem) {
+            this.caKeyPem = caKeyPem;
+            return this;
+        }
+
+        public String getCertificatePem() {
+            return certificatePem;
+        }
+
+        public State setCertificatePem(String certificatePem) {
+            this.certificatePem = certificatePem;
+            return this;
+        }
+
+        public String getCertificateKeyPem() {
+            return certificateKeyPem;
+        }
+
+        public State setCertificateKeyPem(String certificateKeyPem) {
+            this.certificateKeyPem = certificateKeyPem;
+            return this;
+        }
 
         public String getConfigYaml() {
             return configYaml;
