@@ -13,6 +13,7 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.ui.SimpleToolWindowPanel;
 import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.openapi.vfs.VirtualFileWrapper;
 import com.intellij.ui.JBSplitter;
 import com.intellij.ui.LanguageTextField;
 import com.intellij.ui.components.JBScrollPane;
@@ -91,25 +92,28 @@ public class CreateSelfCertificateView extends JPanel {
                     }else {
                         try{
                             FileSaverDialog fileSaverDialog = FileChooser.chooseSaveFile("证书导出", project, "zip");
-                            VirtualFile virtualFile = fileSaverDialog.save(UUID.randomUUID().toString()).getVirtualFile(true);
-                            ZipOutputStream zipOutputStream = new ZipOutputStream(new FileOutputStream(virtualFile.getPath()));
-                            zipOutputStream.putNextEntry(new ZipEntry("ca.pem"));
-                            zipOutputStream.write(ca.getBytes(StandardCharsets.UTF_8));
-                            zipOutputStream.closeEntry();
+                            VirtualFileWrapper virtualFileWrapper = fileSaverDialog.save(UUID.randomUUID().toString());
+                            if(virtualFileWrapper != null){
+                                VirtualFile virtualFile = virtualFileWrapper.getVirtualFile(true);
+                                ZipOutputStream zipOutputStream = new ZipOutputStream(new FileOutputStream(virtualFile.getPath()));
+                                zipOutputStream.putNextEntry(new ZipEntry("ca.pem"));
+                                zipOutputStream.write(ca.getBytes(StandardCharsets.UTF_8));
+                                zipOutputStream.closeEntry();
 
-                            zipOutputStream.putNextEntry(new ZipEntry("ca-key.pem"));
-                            zipOutputStream.write(caKey.getBytes(StandardCharsets.UTF_8));
-                            zipOutputStream.closeEntry();
+                                zipOutputStream.putNextEntry(new ZipEntry("ca-key.pem"));
+                                zipOutputStream.write(caKey.getBytes(StandardCharsets.UTF_8));
+                                zipOutputStream.closeEntry();
 
-                            zipOutputStream.putNextEntry(new ZipEntry("certificate.pem"));
-                            zipOutputStream.write(certificate.getBytes(StandardCharsets.UTF_8));
-                            zipOutputStream.closeEntry();
+                                zipOutputStream.putNextEntry(new ZipEntry("certificate.pem"));
+                                zipOutputStream.write(certificate.getBytes(StandardCharsets.UTF_8));
+                                zipOutputStream.closeEntry();
 
-                            zipOutputStream.putNextEntry(new ZipEntry("certificate-key.pem"));
-                            zipOutputStream.write(certificateKey.getBytes(StandardCharsets.UTF_8));
-                            zipOutputStream.closeEntry();
-                            zipOutputStream.close();
-                            NotifyUtils.notify("导出证书成功",project);
+                                zipOutputStream.putNextEntry(new ZipEntry("certificate-key.pem"));
+                                zipOutputStream.write(certificateKey.getBytes(StandardCharsets.UTF_8));
+                                zipOutputStream.closeEntry();
+                                zipOutputStream.close();
+                                NotifyUtils.notify("导出证书成功",project);
+                            }
                         }catch (Throwable err){
                             Messages.showErrorDialog(err.getMessage(),"导出证书出错");
                         }
