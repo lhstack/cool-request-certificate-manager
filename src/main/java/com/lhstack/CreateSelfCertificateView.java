@@ -6,6 +6,8 @@ import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.DefaultActionGroup;
 import com.intellij.openapi.editor.EditorSettings;
+import com.intellij.openapi.editor.event.DocumentEvent;
+import com.intellij.openapi.editor.event.DocumentListener;
 import com.intellij.openapi.editor.ex.EditorEx;
 import com.intellij.openapi.fileChooser.FileSaverDialog;
 import com.intellij.openapi.fileTypes.PlainTextLanguage;
@@ -21,6 +23,7 @@ import com.intellij.ui.components.JBTabbedPane;
 import com.lhstack.selfsign.SelfSignCertificateEntity;
 import com.lhstack.selfsign.SelfSignCertificateHelper;
 import com.lhstack.selfsign.SelfSignConfig;
+import com.lhstack.state.ProjectState;
 import com.lhstack.utils.NotifyUtils;
 import com.lhstack.utils.PemUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -47,6 +50,7 @@ import java.security.cert.CertificateFactory;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -169,9 +173,10 @@ public class CreateSelfCertificateView extends JPanel {
         actionGroup.add(genCertificateAction());
 
         simpleToolWindowPanel.setToolbar(ActionManager.getInstance().createActionToolbar("SelfSignCertificate",actionGroup,false).getComponent());
+        ProjectState.State state = ProjectState.getInstance().getState();
 
         //配置模块
-        LanguageTextField languageTextField = new LanguageTextField(YAMLLanguage.INSTANCE,project,"",false){
+        LanguageTextField languageTextField = new LanguageTextField(YAMLLanguage.INSTANCE,project, Optional.ofNullable(state.getConfigYaml()).orElse(""),false){
             @Override
             protected @NotNull EditorEx createEditor() {
                 EditorEx editor = super.createEditor();
@@ -181,6 +186,12 @@ public class CreateSelfCertificateView extends JPanel {
                 return editor;
             }
         };
+        languageTextField.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void documentChanged(@NotNull DocumentEvent event) {
+                state.setConfigYaml(event.getDocument().getText());
+            }
+        });
         languageTextFields.put("config",languageTextField);
         simpleToolWindowPanel.setContent(new JBScrollPane(languageTextField));
         return simpleToolWindowPanel;
