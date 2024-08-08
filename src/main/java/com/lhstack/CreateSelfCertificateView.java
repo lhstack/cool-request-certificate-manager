@@ -218,7 +218,7 @@ public class CreateSelfCertificateView extends JPanel {
                         try {
                             SelfSignConfig selfSignConfig = parseConfig(languageTextField.getText());
                             SelfSignConfig.Certificate certificate = selfSignConfig.getCertificate();
-                            SelfSignCertificateEntity entity = SelfSignCertificateHelper.genSelfCertificateFromCaPem(caPem, caKeyPem, certificate.getDn(), certificate.getHosts(), certificate.getValidityYear());
+                            SelfSignCertificateEntity entity = SelfSignCertificateHelper.genSelfCertificateFromCaPem(caPem, caKeyPem, selfSignConfig);
                             String certificatePem = PemUtils.toString(entity.getCertificate());
                             String certificateKeyPem = PemUtils.toString(entity.getCertificateKey());
                             state.setCertificatePem(certificatePem);
@@ -334,7 +334,7 @@ public class CreateSelfCertificateView extends JPanel {
                     try {
                         SelfSignConfig selfSignConfig = parseConfig(languageTextField.getText());
                         SelfSignConfig.CA ca = selfSignConfig.getCa();
-                        SelfSignCertificateEntity entity = SelfSignCertificateHelper.genCaCertificate(ca.getDn(), ca.getAlgorithm(), ca.getValidityYear());
+                        SelfSignCertificateEntity entity = SelfSignCertificateHelper.genCaCertificate(selfSignConfig);
                         String caPem = PemUtils.toString(entity.getCa());
                         String caKeyPem = PemUtils.toString(entity.getCaKey());
                         state.setCaPem(caPem).setCaKeyPem(caKeyPem);

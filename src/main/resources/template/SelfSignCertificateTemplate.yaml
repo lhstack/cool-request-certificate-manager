@@ -1,12 +1,18 @@
+# RSA,EC
+algorithm: EC
 ca:
-  #RSA_1024,RSA_2048,RSA_4096,ECDSA_256,ECDSA_384 签名和加密算法,以及初始化长度,CA和后续证书算法必须一致
-  algorithm: ECDSA_384
   # CN=自签CA证书名称,L=北京市,ST=北京,C=中国,OU=IT部门
   dn: CN=Self Certificate CA
   validityYear: 300 #ca证书有效期 300年
+  #初始化长度
+  initializeSize: 256
+  #签名算法 SHA256withECDSA
+  signatureAlgorithm: SHA256withECDSA
 certificate:
   # CN=自签证书名称,L=北京市,ST=北京,C=中国,OU=IT部门
   dn: CN=Self Certificate Name
   # 信任的域名或者ip
   hosts: []
   validityYear: 300
+  initializeSize: 256
+  signatureAlgorithm: SHA256withRSA
