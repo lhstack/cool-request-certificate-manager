@@ -1,4 +1,4 @@
-# RSA,EC
+# RSA,EC,DSA
 algorithm: EC
 ca:
   # CN=自签CA证书名称,L=北京市,ST=北京,C=中国,OU=IT部门
@@ -17,3 +17,7 @@ certificate:
   initializeSize: 256
   # 签名算法 SHA256withECDSA , SHA256withRSA
   signatureAlgorithm: SHA256withECDSA
+# 以下是支持的算法以及算法对应的签名算法
+# RSA: SHA1withRSA,SHA256withRSA,SHA512withRSA,SHA256withRSAEncryption
+# DSA: SHA1withDSA, SHA256withDSA
+# EC: SHA1withECDSA, SHA256withECDSA, SHA384withECDSA
