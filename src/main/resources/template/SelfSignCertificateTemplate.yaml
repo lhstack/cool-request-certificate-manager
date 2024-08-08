@@ -6,7 +6,7 @@ ca:
   validityYear: 300 #ca证书有效期 300年
   #初始化长度
   initializeSize: 256
-  #签名算法 SHA256withECDSA
+  #签名算法 SHA256withECDSA , SHA256withRSA
   signatureAlgorithm: SHA256withECDSA
 certificate:
   # CN=自签证书名称,L=北京市,ST=北京,C=中国,OU=IT部门
@@ -15,4 +15,5 @@ certificate:
   hosts: []
   validityYear: 300
   initializeSize: 256
-  signatureAlgorithm: SHA256withRSA
+  # 签名算法 SHA256withECDSA , SHA256withRSA
+  signatureAlgorithm: SHA256withECDSA
