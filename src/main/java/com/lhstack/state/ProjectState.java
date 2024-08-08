@@ -8,7 +8,7 @@ import com.intellij.openapi.components.Storage;
 import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
 
-@State(name = "data",storages = {@Storage("CoolRequestCertificateManager.xml")})
+@State(name = "data", storages = {@Storage("CoolRequestCertificateManager.xml")})
 @Service
 public final class ProjectState implements PersistentStateComponent<ProjectState.State> {
 
@@ -16,6 +16,7 @@ public final class ProjectState implements PersistentStateComponent<ProjectState
 
     /**
      * 全局
+     *
      * @return
      */
     public static ProjectState getInstance() {
@@ -24,6 +25,7 @@ public final class ProjectState implements PersistentStateComponent<ProjectState
 
     /**
      * 项目
+     *
      * @param project
      * @return
      */

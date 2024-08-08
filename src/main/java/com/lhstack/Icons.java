@@ -30,4 +30,6 @@ public interface Icons {
     Icon IMPORT2 = IconLoader.findIcon(Icons.class.getClassLoader().getResource("icons/import2.svg"));
 
     Icon CERTIFICATE = IconLoader.findIcon(Icons.class.getClassLoader().getResource("icons/certificate.svg"));
+
+    Icon SHOW = IconLoader.findIcon(Icons.class.getClassLoader().getResource("icons/show.svg"));
 }
