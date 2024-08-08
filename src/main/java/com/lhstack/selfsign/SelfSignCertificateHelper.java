@@ -153,7 +153,7 @@ public class SelfSignCertificateHelper {
         issuedCertBuilder.addExtension(Extension.keyUsage, false, new KeyUsage(KeyUsage.keyEncipherment | KeyUsage.digitalSignature));
         ASN1Encodable[] asn1Encodables = hosts.stream().map(item -> {
             if (IPAddress.isValid(item)) {
-                new GeneralName(GeneralName.iPAddress, item);
+                return new GeneralName(GeneralName.iPAddress, item);
             }
             return new GeneralName(GeneralName.dNSName, item);
         }).toArray(ASN1Encodable[]::new);
@@ -240,7 +240,7 @@ public class SelfSignCertificateHelper {
         issuedCertBuilder.addExtension(Extension.keyUsage, false, new KeyUsage(KeyUsage.keyEncipherment | KeyUsage.digitalSignature));
         ASN1Encodable[] asn1Encodables = hosts.stream().map(item -> {
             if (IPAddress.isValid(item)) {
-                new GeneralName(GeneralName.iPAddress, item);
+                return new GeneralName(GeneralName.iPAddress, item);
             }
             return new GeneralName(GeneralName.dNSName, item);
         }).toArray(ASN1Encodable[]::new);
