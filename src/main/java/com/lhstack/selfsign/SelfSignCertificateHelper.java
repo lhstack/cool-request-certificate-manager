@@ -30,6 +30,8 @@ import java.math.BigInteger;
 import java.security.*;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
+import java.security.interfaces.ECPublicKey;
+import java.security.interfaces.RSAPublicKey;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.Calendar;
 import java.util.Date;
@@ -120,17 +122,18 @@ public class SelfSignCertificateHelper {
      */
     public static SelfSignCertificateEntity genSelfCertificateFromCa(String certificateDN,X509Certificate caCertificate, PrivateKey caPrivateKey,  Set<String> hosts, Integer periodYears) throws Exception{
 
-        String caUserAlgorithm = caCertificate.getPublicKey().getAlgorithm();
-
-        SelfSignAlgorithm algorithm = SelfSignAlgorithm.RSA_2048;
-
-        if("EC".equalsIgnoreCase(caUserAlgorithm) || "ECDSA".equalsIgnoreCase(caUserAlgorithm)) {
-            algorithm = SelfSignAlgorithm.ECDSA_384;
+        PublicKey publicKey = caCertificate.getPublicKey();
+        String algorithm = publicKey.getAlgorithm();
+        int initializeSize = 256;
+        if(publicKey instanceof RSAPublicKey){
+            initializeSize = ((RSAPublicKey) publicKey).getModulus().bitLength();
+        }else if(publicKey instanceof ECPublicKey){
+            initializeSize = ((ECPublicKey) publicKey).getParams().getOrder().bitLength();
         }
-
+        String sigAlgName = caCertificate.getSigAlgName();
         JcaX509CertificateConverter jcaX509CertificateConverter = new JcaX509CertificateConverter().setProvider(BC_PROVIDER);
-        KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance(algorithm.getAlgorithm(), BC_PROVIDER);
-        keyPairGenerator.initialize(algorithm.getSize());
+        KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance(algorithm, BC_PROVIDER);
+        keyPairGenerator.initialize(initializeSize);
         Calendar calendar = Calendar.getInstance();
         calendar.add(Calendar.DATE, -1);
         Date startDate = calendar.getTime();
@@ -142,7 +145,7 @@ public class SelfSignCertificateHelper {
         BigInteger issuedCertSerialNum = new BigInteger(Long.toString(new SecureRandom().nextLong()));
         KeyPair issuedCertKeyPair = keyPairGenerator.generateKeyPair();
         PKCS10CertificationRequestBuilder p10Builder = new JcaPKCS10CertificationRequestBuilder(issuedCertSubject, issuedCertKeyPair.getPublic());
-        JcaContentSignerBuilder csrBuilder = new JcaContentSignerBuilder(algorithm.getSignatureAlgorithm()).setProvider(BC_PROVIDER);
+        JcaContentSignerBuilder csrBuilder = new JcaContentSignerBuilder(sigAlgName).setProvider(BC_PROVIDER);
         ContentSigner csrContentSigner = csrBuilder.build(caPrivateKey);
         PKCS10CertificationRequest csr = p10Builder.build(csrContentSigner);
         X509v3CertificateBuilder issuedCertBuilder = new X509v3CertificateBuilder(caCertificateHolder.getSubject(), issuedCertSerialNum, startDate, endDate, csr.getSubject(), csr.getSubjectPublicKeyInfo());
