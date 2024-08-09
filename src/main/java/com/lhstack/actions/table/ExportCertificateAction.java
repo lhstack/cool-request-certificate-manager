@@ -9,7 +9,9 @@ import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFileWrapper;
 import com.intellij.ui.table.TableView;
 import com.intellij.util.ui.ListTableModel;
-import com.lhstack.*;
+import com.lhstack.FileChooser;
+import com.lhstack.Icons;
+import com.lhstack.Item;
 import com.lhstack.utils.CertificateUtils;
 import com.lhstack.utils.NotifyUtils;
 import org.apache.commons.collections.CollectionUtils;
@@ -54,28 +56,24 @@ public class ExportCertificateAction extends AnAction {
             } else {
                 virtualFileWrapper = fileSaverDialog.save("multi-certificate");
             }
-
-            virtualFile = virtualFileWrapper.getVirtualFile();
-            //如果没有文件,则创建
-            try {
-                if (virtualFile == null) {
+            if(virtualFileWrapper != null){
+                if(virtualFileWrapper.exists()){
+                    virtualFile = virtualFileWrapper.getVirtualFile();
+                }else {
+                    virtualFile = virtualFileWrapper.getVirtualFile(true);
+                }
+                //如果没有文件,则创建
+                try {
                     virtualFile = virtualFileWrapper.getVirtualFile(true);
                     String extension = virtualFile.getExtension();
-                    try {
-                        FileUtils.writeByteArrayToFile(virtualFileWrapper.getFile(), CertificateUtils.export(keyStoreSupplier,passwordSupplier,items, extension));
-                        NotifyUtils.notify("导出已选证书成功", project);
-                    } catch (Throwable err) {
-                        FileUtil.delete(new File(virtualFile.getPresentableUrl()));
-                        throw err;
-                    }
-                } else {
-                    //如果有文件,则提示
-                    FileUtils.writeByteArrayToFile(virtualFileWrapper.getFile(), CertificateUtils.export(keyStoreSupplier,passwordSupplier,items, virtualFile.getExtension()));
+                    FileUtils.writeByteArrayToFile(virtualFileWrapper.getFile(), CertificateUtils.export(keyStoreSupplier,passwordSupplier,items, extension));
                     NotifyUtils.notify("导出已选证书成功", project);
+                } catch (Throwable err) {
+                    FileUtil.delete(new File(virtualFile.getPresentableUrl()));
+                    NotifyUtils.notify("证书导出错误: " + err.getMessage(), project);
                 }
-            } catch (Throwable err) {
-                NotifyUtils.notify("证书导出错误: " + err.getMessage(), project);
             }
+
         }
     }
 }

@@ -147,23 +147,23 @@ public class CreateSelfCertificateView extends JPanel {
         tabbedPane.addTab("ca.pem", createTextFieldPanel("ca", state.getCaPem(), editorEx -> {
             editorEx.installPopupHandler(new DefaultContextMenuPopupHandler(
                     new ShowDetailAction(state::getCaPem,project),
-                    new ExportCertificateAction("ca",state::getCaPem,project)
+                    new ExportCertificateAction(0,"ca",state::getCaPem,project)
             ));
         }));
         tabbedPane.addTab("ca.key", createTextFieldPanel("ca-key", state.getCaKeyPem(), editorEx -> {
             editorEx.installPopupHandler(new DefaultContextMenuPopupHandler(
-                    new ExportCertificateAction("ca-key",state::getCaKeyPem,project)
+                    new ExportCertificateAction(1,"ca-key",state::getCaKeyPem,project)
             ));
         }));
         tabbedPane.addTab("certificate.pem", createTextFieldPanel("certificate", state.getCertificatePem(), editorEx -> {
             editorEx.installPopupHandler(new DefaultContextMenuPopupHandler(
                     new ShowDetailAction(state::getCertificatePem,project),
-                    new ExportCertificateAction("certificate",state::getCertificatePem,project)
+                    new ExportCertificateAction(0,"certificate",state::getCertificatePem,project)
             ));
         }));
         tabbedPane.addTab("certificate.key", createTextFieldPanel("certificate-key", state.getCertificateKeyPem(), editorEx -> {
             editorEx.installPopupHandler(new DefaultContextMenuPopupHandler(
-                    new ExportCertificateAction("certificate-key",state::getCertificateKeyPem,project)
+                    new ExportCertificateAction(1,"certificate-key",state::getCertificateKeyPem,project)
             ));
         }));
         return tabbedPane;

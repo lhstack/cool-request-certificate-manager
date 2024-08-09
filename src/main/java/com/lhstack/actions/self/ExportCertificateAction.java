@@ -4,16 +4,25 @@ import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.fileChooser.FileSaverDialog;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFileWrapper;
 import com.lhstack.FileChooser;
 import com.lhstack.Icons;
 import com.lhstack.utils.NotifyUtils;
+import com.lhstack.utils.PemUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.ByteArrayInputStream;
+import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.security.PrivateKey;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateFactory;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.util.Objects;
 import java.util.function.Supplier;
 
 public class ExportCertificateAction extends AnAction {
@@ -21,12 +30,15 @@ public class ExportCertificateAction extends AnAction {
     private final Supplier<String> pemSupplier;
     private final Project project;
     private final String exportFileName;
+    //0: 证书 1: 私钥
+    private final Integer type;
 
-    public ExportCertificateAction(String exportFileName,Supplier<String> pemSupplier, Project project) {
+    public ExportCertificateAction(Integer type,String exportFileName,Supplier<String> pemSupplier, Project project) {
         super(() -> "导出证书内容", Icons.EXPORT);
         this.pemSupplier = pemSupplier;
         this.project = project;
         this.exportFileName = exportFileName;
+        this.type = type;
     }
 
     @Override
@@ -36,7 +48,7 @@ public class ExportCertificateAction extends AnAction {
             NotifyUtils.notify("导出证书内容为空,请先生成或者导入证书",project);
             return ;
         }
-        FileSaverDialog fileSaverDialog = FileChooser.chooseSaveFile("导出证书", project, "pem");
+        FileSaverDialog fileSaverDialog = FileChooser.chooseSaveFile("导出证书", project, "pem","crt");
         VirtualFileWrapper virtualFileWrapper = fileSaverDialog.save(this.exportFileName);
         if(virtualFileWrapper != null) {
             VirtualFile virtualFile = null;
@@ -46,8 +58,26 @@ public class ExportCertificateAction extends AnAction {
                 virtualFile = virtualFileWrapper.getVirtualFile(true);
             }
             try{
-                Files.write(virtualFile.toNioPath(),text.getBytes(StandardCharsets.UTF_8));
+                switch (virtualFile.getExtension()){
+                    case "pem":
+                        Files.write(virtualFile.toNioPath(),text.getBytes(StandardCharsets.UTF_8));
+                        break;
+                    case "crt":
+                        if(Objects.equals(0,type)){
+                            Certificate certificate = CertificateFactory.getInstance("X.509").generateCertificate(new ByteArrayInputStream(text.getBytes(StandardCharsets.UTF_8)));
+                            Files.write(virtualFile.toNioPath(),certificate.getEncoded());
+                        }else if(Objects.equals(1,type)){
+                            PrivateKey privateKey = PemUtils.readPrivateKey(text);
+                            if(privateKey != null){
+                                Files.write(virtualFile.toNioPath(),new PKCS8EncodedKeySpec(privateKey.getEncoded()).getEncoded());
+                            }else {
+                                FileUtil.delete(new File(virtualFile.getPresentableUrl()));
+                            }
+                        }
+                        break;
+                }
             }catch (Throwable e){
+                FileUtil.delete(new File(virtualFile.getPresentableUrl()));
                 NotifyUtils.notify("导出证书失败,错误信息: " + e.getMessage(),project);
             }
         }
