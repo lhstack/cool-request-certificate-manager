@@ -14,6 +14,22 @@ public class FileChooser {
         return FileChooserFactory.getInstance().createSaveFileDialog(fileSaverDescriptor, project);
     }
 
+    public static Optional<VirtualFile[]> chooseFiles(String title, Project project) {
+        try {
+            FileChooserDialog fileChooser = FileChooserFactory.getInstance().createFileChooser(FileChooserDescriptorFactory
+                    .createMultipleFilesNoJarsDescriptor()
+                    .withTitle(title), project, null);
+            VirtualFile[] choose = fileChooser.choose(project);
+            if (choose.length > 0) {
+                return Optional.of(choose);
+            }
+            return Optional.empty();
+        } catch (Throwable e) {
+            Messages.showErrorDialog(e + "", "错误");
+            return Optional.empty();
+        }
+    }
+
     public static Optional<VirtualFile> chooseSingleFile(String title, Project project) {
         try {
             FileChooserDialog fileChooser = FileChooserFactory.getInstance().createFileChooser(FileChooserDescriptorFactory

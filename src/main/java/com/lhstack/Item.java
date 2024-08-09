@@ -12,8 +12,6 @@ public class Item {
 
     private String type;
 
-    private String content;
-
     private String publicKeyContent;
 
     private String algorithm;
@@ -64,14 +62,6 @@ public class Item {
         return this;
     }
 
-    public String getContent() {
-        return content;
-    }
-
-    public Item setContent(String content) {
-        this.content = content;
-        return this;
-    }
 
     public Item setPublicKey(PublicKey publicKey, Charset charset) {
         if(publicKey != null) {

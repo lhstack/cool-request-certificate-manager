@@ -5,11 +5,8 @@ import com.intellij.openapi.fileChooser.FileSaverDialog;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.ui.SimpleToolWindowPanel;
-import com.intellij.openapi.ui.popup.JBPopupFactory;
-import com.intellij.openapi.ui.popup.ListPopup;
 import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.ui.awt.RelativePoint;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.table.TableView;
 import com.intellij.util.ui.ColumnInfo;
@@ -19,20 +16,28 @@ import com.lhstack.actions.table.ExportCertificateAction;
 import com.lhstack.actions.table.ShowDetailAction;
 import com.lhstack.utils.CertificateUtils;
 import com.lhstack.utils.NotifyUtils;
+import com.lhstack.utils.PemUtils;
 import org.apache.commons.collections.EnumerationUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
+import org.bouncycastle.crypto.util.PrivateKeyFactory;
+import org.bouncycastle.crypto.util.PrivateKeyInfoFactory;
+import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 import javax.swing.table.JTableHeader;
 import javax.swing.table.TableCellRenderer;
 import java.awt.*;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.security.KeyStore;
+import java.security.PrivateKey;
 import java.security.cert.Certificate;
+import java.security.cert.CertificateFactory;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -75,6 +80,7 @@ public class CertificateManagerView extends JPanel {
         group.add(createImportCertificateAction());
         group.add(createEmptyCertificateAction());
         group.add(createAddCertificateAction());
+        group.add(createAddCertificateChainAction());
         group.add(createSaveCertificateAction());
         group.add(createReSaveCertificateAction());
         SimpleToolWindowPanel panel = new SimpleToolWindowPanel(true);
@@ -84,6 +90,84 @@ public class CertificateManagerView extends JPanel {
         mainPanel.add(createMainPanel(), BorderLayout.CENTER);
         panel.setContent(mainPanel);
         this.add(panel, BorderLayout.CENTER);
+    }
+
+    /**
+     * 添加证书链
+     * @return
+     */
+    private AnAction createAddCertificateChainAction() {
+        return new AnAction(() -> "添加证书链",Icons.CERTIFICATE_CHAIN) {
+            @Override
+            public void actionPerformed(@NotNull AnActionEvent event) {
+                if(keyStore == null){
+                    Messages.showErrorDialog("请先导入或者创建空证书", "错误提示");
+                    return ;
+                }
+                String certificateName = JOptionPane.showInputDialog("请设置添加的证书链名称");
+                if (StringUtils.isEmpty(certificateName)) {
+                    throw new RuntimeException("证书名字不能为空");
+                }
+                try{
+                    Certificate[] certificateChain = keyStore.getCertificateChain(certificateName);
+                    if(certificateChain != null && certificateChain.length > 0){
+                        int result = JOptionPane.showConfirmDialog(null, "相同名字的证书已经存在,点击是,覆盖已有证书,点击取消,不做任何修改", "警告", JOptionPane.OK_CANCEL_OPTION);
+                        if(result == JOptionPane.CANCEL_OPTION){
+                            return ;
+                        }
+                    }
+                }catch (Throwable err){
+                    NotifyUtils.notify("添加证书链错误,异常信息: " + err.getMessage(),project);
+                    return ;
+                }
+                FileChooser.chooseSingleFile("请选择私钥文件",project).ifPresent(keyFile -> {
+                    try{
+                        byte[] bytes = Files.readAllBytes(keyFile.toNioPath());
+                        PrivateKey privateKey = null;
+                        try{
+                            privateKey = PemUtils.readPrivateKey(new String(bytes, StandardCharsets.UTF_8));
+                            if(privateKey == null){
+                                JcaPEMKeyConverter converter = new JcaPEMKeyConverter();
+                                PrivateKeyInfo privateKeyInfo = PrivateKeyInfoFactory.createPrivateKeyInfo(PrivateKeyFactory.createKey(bytes));
+                                privateKey = converter.getPrivateKey(privateKeyInfo);
+                            }
+                        }catch (Throwable e){
+                            JcaPEMKeyConverter converter = new JcaPEMKeyConverter();
+                            PrivateKeyInfo privateKeyInfo = PrivateKeyInfoFactory.createPrivateKeyInfo(PrivateKeyFactory.createKey(bytes));
+                            privateKey = converter.getPrivateKey(privateKeyInfo);
+                        }
+                        if(privateKey == null){
+                            NotifyUtils.notify("证书导入失败,私钥为空",project);
+                            return ;
+                        }
+                        PrivateKey finalPrivateKey = privateKey;
+                        FileChooser.chooseSingleFile("请选择私钥对应的证书文件",project).ifPresent(file -> {
+                            List<Certificate> certificates = new ArrayList<>();
+                            try{
+                                byte[] certificateBytes = Files.readAllBytes(file.toNioPath());
+                                Certificate certificate = CertificateFactory.getInstance("X.509").generateCertificate(new ByteArrayInputStream(certificateBytes));
+                                certificates.add(certificate);
+                            }catch (Throwable err){
+                                NotifyUtils.notify(String.format("证书导入失败,文件名称: %s,错误信息: %s",file.getName(),err.getMessage()),project);
+                                return ;
+                            }
+                            String password = JOptionPane.showInputDialog("请输入私钥存储密码,不输入则为空密码");
+                            if(StringUtils.isBlank(password)){
+                                password = "";
+                            }
+                            try{
+                                keyStore.setKeyEntry(certificateName, finalPrivateKey,password.toCharArray(),certificates.toArray(Certificate[]::new));
+                                refreshTable();
+                            }catch (Throwable e){
+                                NotifyUtils.notify("证书导入失败,错误信息: " + e.getMessage(),project);
+                            }
+                        });
+                    }catch (Throwable err){
+                        NotifyUtils.notify("证书导入失败,错误信息: " + err.getMessage(),project);
+                    }
+                });
+            }
+        };
     }
 
     /**
@@ -215,28 +299,11 @@ public class CertificateManagerView extends JPanel {
                                 int result = JOptionPane.showConfirmDialog(null, "相同名字的证书已经存在,点击是,覆盖已有证书,点击取消,不做任何修改", "警告", JOptionPane.OK_CANCEL_OPTION);
                                 if (result == JOptionPane.OK_OPTION) {
                                     keyStore.setCertificateEntry(certificateName, certificate);
-                                    for (Item item : models.getItems()) {
-                                        if (StringUtils.equals(item.getName(), certificateName)) {
-                                            item.setType(certificate.getType());
-                                            item.setCertificate(certificate)
-                                                    .setName(certificateName)
-                                                    .setContent(new String(certificate.getEncoded(), virtualFile.getCharset()))
-                                                    .setPublicKey(certificate.getPublicKey(), virtualFile.getCharset());
-                                            models.fireTableDataChanged();
-                                            NotifyUtils.notify("替换已有证书成功", project);
-                                        }
-                                    }
+                                    refreshTable();
                                 }
                             } else {
                                 keyStore.setCertificateEntry(certificateName, certificate);
-                                Item item = new Item()
-                                        .setId(idGenerator.incrementAndGet())
-                                        .setType(certificate.getType())
-                                        .setName(certificateName)
-                                        .setCertificate(certificate)
-                                        .setContent(new String(certificate.getEncoded(), virtualFile.getCharset()))
-                                        .setPublicKey(certificate.getPublicKey(), virtualFile.getCharset());
-                                models.addRow(item);
+                                refreshTable();
                                 NotifyUtils.notify("添加证书成功", project);
                             }
                         } catch (Throwable err) {
@@ -246,6 +313,23 @@ public class CertificateManagerView extends JPanel {
                 }
             }
         };
+    }
+
+    private void refreshTable() throws Throwable {
+        List<String> list = EnumerationUtils.toList(keyStore.aliases());
+        list.sort(Comparator.comparing(Function.identity()));
+        models.setItems(new ArrayList<>());
+        for (String alias : list) {
+            Certificate certificate = keyStore.getCertificate(alias);
+            Item item = new Item()
+                    .setId(idGenerator.incrementAndGet())
+                    .setName(alias)
+                    .setCertificate(certificate)
+                    .setType(certificate.getType())
+                    .setPublicKey(certificate.getPublicKey(), StandardCharsets.UTF_8);
+            models.addRow(item);
+        }
+        models.fireTableDataChanged();
     }
 
     /**
@@ -325,10 +409,9 @@ public class CertificateManagerView extends JPanel {
                     Certificate certificate = this.keyStore.getCertificate(alias);
                     Item item = new Item()
                             .setId(idGenerator.incrementAndGet())
-                            .setContent(new String(certificate.getEncoded(), virtualFile.getCharset()))
                             .setName(alias)
                             .setType(certificate.getType())
-                            .setPublicKey(certificate.getPublicKey(), virtualFile.getCharset())
+                            .setPublicKey(certificate.getPublicKey(), StandardCharsets.UTF_8)
                             .setCertificate(certificate);
                     this.models.addRow(item);
                 }
@@ -385,29 +468,20 @@ public class CertificateManagerView extends JPanel {
 
 //        this.tableView.setCellSelectionEnabled(false);
 //        this.tableView.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        this.tableView.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                if (SwingUtilities.isRightMouseButton(e)) {
-                    CertificateManagerView.this.createPopupMenus(e);
-                }
-            }
-        });
-        return new JBScrollPane(tableView);
-    }
-
-    /**
-     * 创建右键菜单
-     *
-     * @param e
-     */
-    private void createPopupMenus(MouseEvent e) {
         DefaultActionGroup group = new DefaultActionGroup();
         group.add(new ShowDetailAction(tableView, models, project));
-        group.add(new DeleteCertificateAction(tableView, models, project, this.keyStore));
+        group.add(new DeleteCertificateAction(tableView, models, project, () -> this.keyStore,() -> {
+            try {
+                refreshTable();
+            } catch (Throwable e) {
+                NotifyUtils.notify("删除证书失败,错误信息: " + e.getMessage(),project);
+            }
+        }));
         group.add(new ExportCertificateAction(tableView, models, project, () -> this.keyStore, () -> passwordArray));
-        ListPopup listPopup = JBPopupFactory.getInstance().createActionGroupPopup("操作", group, DataContext.EMPTY_CONTEXT, JBPopupFactory.ActionSelectionAid.MNEMONICS, true);
-        listPopup.show(new RelativePoint(e.getComponent(), new Point(e.getX(), e.getY())));
+        ActionPopupMenu popupMenu = ActionManager.getInstance().createActionPopupMenu("操作", group);
+//        ListPopup listPopup = JBPopupFactory.getInstance().createActionGroupPopup("操作", group, DataContext.EMPTY_CONTEXT, JBPopupFactory.ActionSelectionAid.MNEMONICS, true);
+        this.tableView.setComponentPopupMenu(popupMenu.getComponent());
+        return new JBScrollPane(tableView);
     }
 
 }
