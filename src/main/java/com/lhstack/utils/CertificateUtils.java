@@ -17,6 +17,7 @@ import java.math.BigInteger;
 import java.security.*;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateFactory;
+import java.security.spec.PKCS8EncodedKeySpec;
 import java.time.Duration;
 import java.util.Date;
 import java.util.List;
@@ -90,14 +91,15 @@ public class CertificateUtils {
 
     private static byte[] pkcs8Export(Supplier<KeyStore> keyStoreSupplier, Supplier<char[]> passwordSupplier, List<Item> items) throws Exception {
         Item item = items.get(0);
-        Key key = keyStoreSupplier.get().getKey(item.getName(), passwordSupplier.get());
+        String password = JOptionPane.showInputDialog("请输入私钥密码");
+        Key key = keyStoreSupplier.get().getKey(item.getName(), password.toCharArray());
         if (key instanceof PrivateKey) {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            byte[] encoded = key.getEncoded();
+            byte[] encoded = new PKCS8EncodedKeySpec(key.getEncoded()).getEncoded();
             baos.write(encoded);
             return baos.toByteArray();
         }
-        throw new RuntimeException("不支持导出pkcs8的证书类型");
+        throw new RuntimeException("不支持导出pkcs8的证书类型,请检查证书是否存在私钥");
     }
 
     private static byte[] crtExport(List<Item> items) throws Exception {

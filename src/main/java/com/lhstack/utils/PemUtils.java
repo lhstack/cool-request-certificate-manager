@@ -6,14 +6,13 @@ import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
 
-import java.io.ByteArrayOutputStream;
-import java.io.FileOutputStream;
-import java.io.OutputStreamWriter;
-import java.io.StringReader;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.security.PrivateKey;
 import java.security.Provider;
 import java.security.Security;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateFactory;
 
 public class PemUtils {
 
@@ -33,6 +32,10 @@ public class PemUtils {
             return CONVERTER.getPrivateKey(((PEMKeyPair) o).getPrivateKeyInfo());
         }
         return null;
+    }
+
+    public static Certificate readCertificate(String pem) throws Exception {
+        return CertificateFactory.getInstance("X.509").generateCertificate(new ByteArrayInputStream(pem.getBytes(StandardCharsets.UTF_8)));
     }
 
 

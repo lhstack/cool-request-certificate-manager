@@ -40,13 +40,11 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.InputStream;
-import java.io.StringReader;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.security.KeyFactory;
+import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateFactory;
@@ -102,7 +100,7 @@ public class CreateSelfCertificateView extends JPanel {
                     } else {
                         try {
                             FileSaverDialog fileSaverDialog = FileChooser.chooseSaveFile("证书导出", project, "zip");
-                            VirtualFileWrapper virtualFileWrapper = fileSaverDialog.save(UUID.randomUUID().toString());
+                            VirtualFileWrapper virtualFileWrapper = fileSaverDialog.save("certs.zip");
                             if (virtualFileWrapper != null) {
                                 VirtualFile virtualFile = virtualFileWrapper.getVirtualFile(true);
                                 ZipOutputStream zipOutputStream = new ZipOutputStream(new FileOutputStream(virtualFile.getPath()));
@@ -132,6 +130,67 @@ public class CreateSelfCertificateView extends JPanel {
             }
         });
         jPanel.add(button);
+        JButton exportJksButton = new JButton("导出证书为jks");
+        exportJksButton.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if(SwingUtilities.isLeftMouseButton(e)) {
+                    if (SwingUtilities.isLeftMouseButton(e)) {
+                        String ca = languageTextFields.get("ca").getText();
+                        String caKey = languageTextFields.get("ca-key").getText();
+                        String certificate = languageTextFields.get("certificate").getText();
+                        String certificateKey = languageTextFields.get("certificate-key").getText();
+                        if (StringUtils.isAnyBlank(ca, caKey, certificate, certificateKey)) {
+                            Messages.showErrorDialog("生成的证书不完整,无法导出,请检查你是否生成/导入了CA相关证书,通过CA生成了证书", "提示");
+                        } else {
+                            try {
+                                FileSaverDialog fileSaverDialog = FileChooser.chooseSaveFile("证书导出", project, "zip");
+                                VirtualFileWrapper virtualFileWrapper = fileSaverDialog.save("certs-jks.zip");
+                                if (virtualFileWrapper != null) {
+                                    String caKeyPassword = UUID.randomUUID().toString();
+                                    String caStorePassword = UUID.randomUUID().toString();
+                                    VirtualFile virtualFile = virtualFileWrapper.getVirtualFile(true);
+                                    ZipOutputStream zipOutputStream = new ZipOutputStream(new FileOutputStream(virtualFile.getPath()));
+                                    zipOutputStream.putNextEntry(new ZipEntry("ca.jks"));
+                                    Certificate certificateObj = PemUtils.readCertificate(ca);
+                                    PrivateKey privateKey = PemUtils.readPrivateKey(caKey);
+                                    KeyStore store = KeyStore.getInstance(KeyStore.getDefaultType());
+                                    store.load(null, null);
+                                    store.setKeyEntry("ca",privateKey,caKeyPassword.toCharArray(),new Certificate[]{certificateObj});
+                                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                                    store.store(baos,caStorePassword.toCharArray());
+                                    zipOutputStream.write(baos.toByteArray());
+                                    zipOutputStream.closeEntry();
+
+                                    String certificateKeyPassword = UUID.randomUUID().toString();
+                                    String certificateStorePassword = UUID.randomUUID().toString();
+                                    zipOutputStream.putNextEntry(new ZipEntry("certificate.jks"));
+                                    certificateObj = PemUtils.readCertificate(ca);
+                                    privateKey = PemUtils.readPrivateKey(caKey);
+                                    store = KeyStore.getInstance(KeyStore.getDefaultType());
+                                    store.load(null, null);
+                                    store.setKeyEntry("certificate",privateKey,certificateKeyPassword.toCharArray(),new Certificate[]{certificateObj});
+                                    baos = new ByteArrayOutputStream();
+                                    store.store(baos,certificateStorePassword.toCharArray());
+                                    zipOutputStream.write(baos.toByteArray());
+                                    zipOutputStream.closeEntry();
+
+                                    zipOutputStream.putNextEntry(new ZipEntry("密码.txt"));
+                                    String passwordText = String.format("ca.jks私钥密码: %s\nca.jks存储密码: %s\ncertificate.jks私钥密码: %s\ncertificate.jks存储密码: %s",caKeyPassword,caStorePassword,certificateKeyPassword,certificateStorePassword);
+                                    zipOutputStream.write(passwordText.getBytes(StandardCharsets.UTF_8));
+                                    zipOutputStream.closeEntry();
+                                    zipOutputStream.close();
+                                    NotifyUtils.notify("导出证书成功", project);
+                                }
+                            } catch (Throwable err) {
+                                Messages.showErrorDialog(err.getMessage(), "导出证书出错");
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        jPanel.add(exportJksButton);
         return jPanel;
     }
 
