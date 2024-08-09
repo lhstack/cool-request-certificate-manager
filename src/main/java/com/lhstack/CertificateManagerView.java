@@ -319,6 +319,7 @@ public class CertificateManagerView extends JPanel {
         List<String> list = EnumerationUtils.toList(keyStore.aliases());
         list.sort(Comparator.comparing(Function.identity()));
         models.setItems(new ArrayList<>());
+        idGenerator.set(0);
         for (String alias : list) {
             Certificate certificate = keyStore.getCertificate(alias);
             Item item = new Item()
