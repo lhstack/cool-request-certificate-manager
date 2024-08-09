@@ -48,7 +48,8 @@ public class ExportCertificateAction extends AnAction {
             NotifyUtils.notify("导出证书内容为空,请先生成或者导入证书",project);
             return ;
         }
-        FileSaverDialog fileSaverDialog = FileChooser.chooseSaveFile("导出证书", project, "pem","crt");
+        String dynamicExtensions = Objects.equals(type,0) ? "crt" : "key";
+        FileSaverDialog fileSaverDialog = FileChooser.chooseSaveFile("导出证书", project, "pem",dynamicExtensions);
         VirtualFileWrapper virtualFileWrapper = fileSaverDialog.save(this.exportFileName);
         if(virtualFileWrapper != null) {
             VirtualFile virtualFile = null;
@@ -63,18 +64,17 @@ public class ExportCertificateAction extends AnAction {
                         Files.write(virtualFile.toNioPath(),text.getBytes(StandardCharsets.UTF_8));
                         break;
                     case "crt":
-                        if(Objects.equals(0,type)){
-                            Certificate certificate = CertificateFactory.getInstance("X.509").generateCertificate(new ByteArrayInputStream(text.getBytes(StandardCharsets.UTF_8)));
-                            Files.write(virtualFile.toNioPath(),certificate.getEncoded());
-                        }else if(Objects.equals(1,type)){
-                            PrivateKey privateKey = PemUtils.readPrivateKey(text);
-                            if(privateKey != null){
-                                Files.write(virtualFile.toNioPath(),new PKCS8EncodedKeySpec(privateKey.getEncoded()).getEncoded());
-                            }else {
-                                FileUtil.delete(new File(virtualFile.getPresentableUrl()));
-                            }
-                        }
+                        Certificate certificate = CertificateFactory.getInstance("X.509").generateCertificate(new ByteArrayInputStream(text.getBytes(StandardCharsets.UTF_8)));
+                        Files.write(virtualFile.toNioPath(),certificate.getEncoded());
                         break;
+                    case "key":
+                        PrivateKey privateKey = PemUtils.readPrivateKey(text);
+                        if(privateKey != null){
+                            Files.write(virtualFile.toNioPath(),new PKCS8EncodedKeySpec(privateKey.getEncoded()).getEncoded());
+                        }else {
+                            NotifyUtils.notify("导出失败,不支持的私钥类型",project);
+                            FileUtil.delete(new File(virtualFile.getPresentableUrl()));
+                        }
                 }
             }catch (Throwable e){
                 FileUtil.delete(new File(virtualFile.getPresentableUrl()));
