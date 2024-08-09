@@ -165,8 +165,8 @@ public class CreateSelfCertificateView extends JPanel {
                                     String certificateKeyPassword = UUID.randomUUID().toString();
                                     String certificateStorePassword = UUID.randomUUID().toString();
                                     zipOutputStream.putNextEntry(new ZipEntry("certificate.jks"));
-                                    certificateObj = PemUtils.readCertificate(ca);
-                                    privateKey = PemUtils.readPrivateKey(caKey);
+                                    certificateObj = PemUtils.readCertificate(certificate);
+                                    privateKey = PemUtils.readPrivateKey(certificateKey);
                                     store = KeyStore.getInstance(KeyStore.getDefaultType());
                                     store.load(null, null);
                                     store.setKeyEntry("certificate",privateKey,certificateKeyPassword.toCharArray(),new Certificate[]{certificateObj});
