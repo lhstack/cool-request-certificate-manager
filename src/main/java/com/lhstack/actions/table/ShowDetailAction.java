@@ -1,4 +1,4 @@
-package com.lhstack.actions;
+package com.lhstack.actions.table;
 
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;

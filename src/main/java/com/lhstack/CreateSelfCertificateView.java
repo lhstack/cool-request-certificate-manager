@@ -1,13 +1,14 @@
 package com.lhstack;
 
 import com.google.gson.Gson;
-import com.intellij.openapi.actionSystem.*;
+import com.intellij.openapi.actionSystem.ActionManager;
+import com.intellij.openapi.actionSystem.AnAction;
+import com.intellij.openapi.actionSystem.AnActionEvent;
+import com.intellij.openapi.actionSystem.DefaultActionGroup;
 import com.intellij.openapi.editor.EditorSettings;
 import com.intellij.openapi.editor.event.DocumentEvent;
 import com.intellij.openapi.editor.event.DocumentListener;
-import com.intellij.openapi.editor.event.EditorMouseEvent;
 import com.intellij.openapi.editor.ex.EditorEx;
-import com.intellij.openapi.editor.impl.ContextMenuPopupHandler;
 import com.intellij.openapi.fileChooser.FileSaverDialog;
 import com.intellij.openapi.fileTypes.PlainTextLanguage;
 import com.intellij.openapi.project.Project;
@@ -19,6 +20,9 @@ import com.intellij.ui.JBSplitter;
 import com.intellij.ui.LanguageTextField;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.components.JBTabbedPane;
+import com.lhstack.actions.self.ExportCertificateAction;
+import com.lhstack.actions.self.ShowDetailAction;
+import com.lhstack.components.DefaultContextMenuPopupHandler;
 import com.lhstack.selfsign.SelfSignCertificateEntity;
 import com.lhstack.selfsign.SelfSignCertificateHelper;
 import com.lhstack.selfsign.SelfSignConfig;
@@ -36,14 +40,16 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.io.*;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.security.KeyFactory;
 import java.security.PrivateKey;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateFactory;
-import java.security.cert.X509Certificate;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.HashMap;
 import java.util.Map;
@@ -139,79 +145,30 @@ public class CreateSelfCertificateView extends JPanel {
     private JComponent createRightPanel() {
         JBTabbedPane tabbedPane = new JBTabbedPane();
         tabbedPane.addTab("ca.pem", createTextFieldPanel("ca", state.getCaPem(), editorEx -> {
-            editorEx.installPopupHandler(createContextMenuPopupHandler(new AnAction(() -> "查看证书详情", Icons.SHOW) {
-                @Override
-                public void actionPerformed(@NotNull AnActionEvent event) {
-                    if (StringUtils.isNotBlank(state.getCaPem())) {
-                        try {
-                            X509Certificate certificate = (X509Certificate) CertificateFactory.getInstance("X.509").generateCertificate(new ByteArrayInputStream(state.getCaPem().getBytes(StandardCharsets.UTF_8)));
-                            createTextFieldDialog(certificate.getSubjectX500Principal().getName(), certificate.toString()).setVisible(true);
-                            ;
-                        } catch (Throwable e) {
-                            createTextFieldDialog("查看证书详情出错", e.getMessage()).setVisible(true);
-                        }
-                    }
-
-                }
-            }));
+            editorEx.installPopupHandler(new DefaultContextMenuPopupHandler(
+                    new ShowDetailAction(state::getCaPem,project),
+                    new ExportCertificateAction("ca",state::getCaPem,project)
+            ));
         }));
         tabbedPane.addTab("ca.key", createTextFieldPanel("ca-key", state.getCaKeyPem(), editorEx -> {
+            editorEx.installPopupHandler(new DefaultContextMenuPopupHandler(
+                    new ExportCertificateAction("ca-key",state::getCaKeyPem,project)
+            ));
         }));
         tabbedPane.addTab("certificate.pem", createTextFieldPanel("certificate", state.getCertificatePem(), editorEx -> {
-            editorEx.installPopupHandler(createContextMenuPopupHandler(new AnAction(() -> "查看证书详情", Icons.SHOW) {
-                @Override
-                public void actionPerformed(@NotNull AnActionEvent event) {
-                    if (StringUtils.isNotBlank(state.getCertificatePem())) {
-                        try {
-                            X509Certificate certificate = (X509Certificate) CertificateFactory.getInstance("X.509").generateCertificate(new ByteArrayInputStream(state.getCertificatePem().getBytes(StandardCharsets.UTF_8)));
-                            createTextFieldDialog(certificate.getSubjectX500Principal().getName(), certificate.toString()).setVisible(true);
-                        } catch (Throwable e) {
-                            createTextFieldDialog("查看证书详情出错", e.getMessage()).setVisible(true);
-                        }
-                    }
-
-                }
-            }));
+            editorEx.installPopupHandler(new DefaultContextMenuPopupHandler(
+                    new ShowDetailAction(state::getCertificatePem,project),
+                    new ExportCertificateAction("certificate",state::getCertificatePem,project)
+            ));
         }));
         tabbedPane.addTab("certificate.key", createTextFieldPanel("certificate-key", state.getCertificateKeyPem(), editorEx -> {
+            editorEx.installPopupHandler(new DefaultContextMenuPopupHandler(
+                    new ExportCertificateAction("certificate-key",state::getCertificateKeyPem,project)
+            ));
         }));
         return tabbedPane;
     }
 
-    private JDialog createTextFieldDialog(String title, String text) {
-        JDialog dialog = new JDialog();
-        LanguageTextField languageTextField = new LanguageTextField(PlainTextLanguage.INSTANCE, project, text,false) {
-            @Override
-            protected @NotNull EditorEx createEditor() {
-                EditorEx editor = super.createEditor();
-                EditorSettings settings = editor.getSettings();
-                settings.setLineMarkerAreaShown(true);
-                settings.setLineNumbersShown(true);
-                return editor;
-            }
-        };
-        languageTextField.setEnabled(false);
-        JBScrollPane scrollPane = new JBScrollPane(languageTextField);
-        dialog.getContentPane().add(scrollPane);
-        dialog.setTitle(title);
-        dialog.setSize(800, 600);
-        dialog.setModal(true);
-        dialog.setLocationRelativeTo(null);
-        return dialog;
-    }
-
-    private ContextMenuPopupHandler createContextMenuPopupHandler(AnAction... actions) {
-        return new ContextMenuPopupHandler() {
-            @Override
-            public ActionGroup getActionGroup(@NotNull EditorMouseEvent editorMouseEvent) {
-                String text = editorMouseEvent.getEditor().getDocument().getText();
-                if (StringUtils.isNotBlank(text)) {
-                    return new DefaultActionGroup(actions);
-                }
-                return null;
-            }
-        };
-    }
 
     private JComponent createTextFieldPanel(String name, String initText, Consumer<EditorEx> editorExConsumer) {
         LanguageTextField languageTextField = new LanguageTextField(PlainTextLanguage.INSTANCE, project, Optional.ofNullable(initText).orElse(""), false) {
