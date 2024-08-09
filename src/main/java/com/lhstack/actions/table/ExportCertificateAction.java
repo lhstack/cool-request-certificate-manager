@@ -47,7 +47,7 @@ public class ExportCertificateAction extends AnAction {
     public void actionPerformed(@NotNull AnActionEvent e) {
         List<Item> items = this.tableView.getSelectedObjects();
         if (CollectionUtils.isNotEmpty(items)) {
-            FileSaverDialog fileSaverDialog = FileChooser.chooseSaveFile("导出证书", project, "pem", "jks", "crt", "cer","pkcs8");
+            FileSaverDialog fileSaverDialog = FileChooser.chooseSaveFile("导出证书", project, "pem", "jks", "crt", "cer");
             VirtualFileWrapper virtualFileWrapper;
             VirtualFile virtualFile;
             if (items.size() == 1) {

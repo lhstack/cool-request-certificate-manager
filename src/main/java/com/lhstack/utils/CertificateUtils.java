@@ -143,25 +143,4 @@ public class CertificateUtils {
         }
         throw new RuntimeException("导入证书仅支持crt,pem,cer格式证书");
     }
-
-    public static KeyStore convert(KeyStore keyStore, String extension) throws Exception {
-        extension = extension.toLowerCase(Locale.ROOT);
-        switch (extension) {
-            case "pkcs12":
-            case "p12":
-            case "pfx": {
-                KeyStore pfxKeyStore = KeyStore.getInstance("PKCS12");
-                pfxKeyStore.load(null, null);
-                List<String> alias = EnumerationUtils.toList(keyStore.aliases());
-                for (String s : alias) {
-                    pfxKeyStore.setCertificateEntry(s, keyStore.getCertificate(s));
-                }
-                return pfxKeyStore;
-            }
-            case "jks":
-            default: {
-                return keyStore;
-            }
-        }
-    }
 }

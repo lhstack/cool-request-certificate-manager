@@ -7,12 +7,14 @@ import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.ui.SimpleToolWindowPanel;
 import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.openapi.vfs.VirtualFileWrapper;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.table.TableView;
 import com.intellij.util.ui.ColumnInfo;
 import com.intellij.util.ui.ListTableModel;
 import com.lhstack.actions.table.DeleteCertificateAction;
 import com.lhstack.actions.table.ExportCertificateAction;
+import com.lhstack.actions.table.ExportPrivateKeyAction;
 import com.lhstack.actions.table.ShowDetailAction;
 import com.lhstack.utils.CertificateUtils;
 import com.lhstack.utils.NotifyUtils;
@@ -41,7 +43,6 @@ import java.security.cert.CertificateFactory;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
 public class CertificateManagerView extends JPanel {
@@ -54,9 +55,6 @@ public class CertificateManagerView extends JPanel {
     private ListTableModel<Item> models;
 
     private TableView<Item> tableView;
-
-    private final AtomicInteger idGenerator = new AtomicInteger(0);
-
     /**
      * 证书虚拟文件,isNew = false时存在
      */
@@ -94,76 +92,77 @@ public class CertificateManagerView extends JPanel {
 
     /**
      * 添加证书链
+     *
      * @return
      */
     private AnAction createAddCertificateChainAction() {
-        return new AnAction(() -> "添加证书链",Icons.CERTIFICATE_CHAIN) {
+        return new AnAction(() -> "添加证书链", Icons.CERTIFICATE_CHAIN) {
             @Override
             public void actionPerformed(@NotNull AnActionEvent event) {
-                if(keyStore == null){
+                if (keyStore == null) {
                     Messages.showErrorDialog("请先导入或者创建空证书", "错误提示");
-                    return ;
+                    return;
                 }
                 String certificateName = JOptionPane.showInputDialog("请设置添加的证书链名称");
                 if (StringUtils.isEmpty(certificateName)) {
                     throw new RuntimeException("证书名字不能为空");
                 }
-                try{
+                try {
                     Certificate[] certificateChain = keyStore.getCertificateChain(certificateName);
-                    if(certificateChain != null && certificateChain.length > 0){
+                    if (certificateChain != null && certificateChain.length > 0) {
                         int result = JOptionPane.showConfirmDialog(null, "相同名字的证书已经存在,点击是,覆盖已有证书,点击取消,不做任何修改", "警告", JOptionPane.OK_CANCEL_OPTION);
-                        if(result == JOptionPane.CANCEL_OPTION){
-                            return ;
+                        if (result == JOptionPane.CANCEL_OPTION) {
+                            return;
                         }
                     }
-                }catch (Throwable err){
-                    NotifyUtils.notify("添加证书链错误,异常信息: " + err.getMessage(),project);
-                    return ;
+                } catch (Throwable err) {
+                    NotifyUtils.notify("添加证书链错误,异常信息: " + err.getMessage(), project);
+                    return;
                 }
-                FileChooser.chooseSingleFile("请选择私钥文件",project).ifPresent(keyFile -> {
-                    try{
+                FileChooser.chooseSingleFile("请选择私钥文件", project).ifPresent(keyFile -> {
+                    try {
                         byte[] bytes = Files.readAllBytes(keyFile.toNioPath());
                         PrivateKey privateKey = null;
-                        try{
+                        try {
                             privateKey = PemUtils.readPrivateKey(new String(bytes, StandardCharsets.UTF_8));
-                            if(privateKey == null){
+                            if (privateKey == null) {
                                 JcaPEMKeyConverter converter = new JcaPEMKeyConverter();
                                 PrivateKeyInfo privateKeyInfo = PrivateKeyInfoFactory.createPrivateKeyInfo(PrivateKeyFactory.createKey(bytes));
                                 privateKey = converter.getPrivateKey(privateKeyInfo);
                             }
-                        }catch (Throwable e){
+                        } catch (Throwable e) {
                             JcaPEMKeyConverter converter = new JcaPEMKeyConverter();
                             PrivateKeyInfo privateKeyInfo = PrivateKeyInfoFactory.createPrivateKeyInfo(PrivateKeyFactory.createKey(bytes));
                             privateKey = converter.getPrivateKey(privateKeyInfo);
                         }
-                        if(privateKey == null){
-                            NotifyUtils.notify("证书导入失败,私钥为空",project);
-                            return ;
+                        if (privateKey == null) {
+                            NotifyUtils.notify("证书导入失败,私钥为空", project);
+                            return;
                         }
                         PrivateKey finalPrivateKey = privateKey;
-                        FileChooser.chooseSingleFile("请选择私钥对应的证书文件",project).ifPresent(file -> {
-                            List<Certificate> certificates = new ArrayList<>();
-                            try{
+                        FileChooser.chooseSingleFile("请选择私钥对应的证书文件", project).ifPresent(file -> {
+                            Certificate certificate;
+                            try {
                                 byte[] certificateBytes = Files.readAllBytes(file.toNioPath());
-                                Certificate certificate = CertificateFactory.getInstance("X.509").generateCertificate(new ByteArrayInputStream(certificateBytes));
-                                certificates.add(certificate);
-                            }catch (Throwable err){
-                                NotifyUtils.notify(String.format("证书导入失败,文件名称: %s,错误信息: %s",file.getName(),err.getMessage()),project);
-                                return ;
+                                certificate = CertificateFactory.getInstance("X.509").generateCertificate(new ByteArrayInputStream(certificateBytes));
+                            } catch (Throwable err) {
+                                NotifyUtils.notify(String.format("证书导入失败,文件名称: %s,错误信息: %s", file.getName(), err.getMessage()), project);
+                                return;
                             }
                             String password = JOptionPane.showInputDialog("请输入私钥存储密码,不输入则为空密码");
-                            if(StringUtils.isBlank(password)){
-                                password = "";
+                            char[] passwordArray = null;
+                            if (StringUtils.isNotBlank(password)) {
+                                passwordArray = password.toCharArray();
                             }
-                            try{
-                                keyStore.setKeyEntry(certificateName, finalPrivateKey,password.toCharArray(),certificates.toArray(Certificate[]::new));
+                            try {
+                                keyStore.setKeyEntry(certificateName, finalPrivateKey, passwordArray, new Certificate[]{certificate});
                                 refreshTable();
-                            }catch (Throwable e){
-                                NotifyUtils.notify("证书导入失败,错误信息: " + e.getMessage(),project);
+                            } catch (Throwable e) {
+                                NotifyUtils.notify("证书导入失败,错误信息: " + e.getMessage(), project);
                             }
                         });
-                    }catch (Throwable err){
-                        NotifyUtils.notify("证书导入失败,错误信息: " + err.getMessage(),project);
+                    } catch (Throwable err) {
+                        NotifyUtils.notify("证书导入失败,错误信息: " + err.getMessage(), project);
                     }
                 });
             }
@@ -179,25 +178,32 @@ public class CertificateManagerView extends JPanel {
         return new AnAction(() -> "另存为", Icons.RESAVE) {
             @Override
             public void actionPerformed(@NotNull AnActionEvent e) {
+                if (keyStore == null) {
+                    Messages.showErrorDialog("请先导入或者创建证书", "提示");
+                    return;
+                }
                 //不是新建
                 if (!isNew) {
                     VirtualFile virtualFile = null;
                     try {
-                        FileSaverDialog fileSaverDialog = FileChooser.chooseSaveFile("另存为证书", project, "jks", "pfx", "pkcs12", "p12");
-                        virtualFile = fileSaverDialog.save("newCertificate").getVirtualFile(true);
-                        String password = JOptionPane.showInputDialog("请输入证书密码,不输入或者点取消则默认无密码");
-                        char[] newPassword;
-                        if (StringUtils.isNotBlank(password)) {
-                            newPassword = password.toCharArray();
-                        } else {
-                            newPassword = new char[0];
+                        FileSaverDialog fileSaverDialog = FileChooser.chooseSaveFile("另存为证书", project, "jks");
+                        VirtualFileWrapper virtualFileWrapper = fileSaverDialog.save("newCertificate");
+                        if (virtualFileWrapper != null) {
+                            virtualFile = virtualFileWrapper.getVirtualFile(true);
+                            String password = JOptionPane.showInputDialog("请输入证书密码,不输入或者点取消则默认无密码");
+                            char[] newPassword;
+                            if (StringUtils.isNotBlank(password)) {
+                                newPassword = password.toCharArray();
+                            } else {
+                                newPassword = null;
+                            }
+                            String presentableUrl = virtualFile.getPresentableUrl();
+                            FileOutputStream fos = new FileOutputStream(presentableUrl);
+                            keyStore.store(fos, newPassword);
+                            fos.close();
+                            NotifyUtils.notify("另存为证书成功", project);
                         }
-                        String presentableUrl = virtualFile.getPresentableUrl();
-                        FileOutputStream fos = new FileOutputStream(presentableUrl);
-                        KeyStore targetKeyStore = CertificateUtils.convert(keyStore, virtualFile.getExtension());
-                        targetKeyStore.store(fos, newPassword);
-                        fos.close();
-                        NotifyUtils.notify("另存为证书成功", project);
+
                     } catch (Throwable err) {
                         if (virtualFile != null) {
                             FileUtil.delete(new File(virtualFile.getPresentableUrl()));
@@ -208,20 +214,23 @@ public class CertificateManagerView extends JPanel {
                     VirtualFile virtualFile = null;
                     try {
                         FileSaverDialog fileSaverDialog = FileChooser.chooseSaveFile("保存证书", project, "jks");
-                        virtualFile = fileSaverDialog.save("newCertificate").getVirtualFile(true);
-                        String password = JOptionPane.showInputDialog("请输入证书密码,不输入或者点取消则默认无密码");
-                        char[] newPassword;
-                        if (StringUtils.isNotBlank(password)) {
-                            newPassword = password.toCharArray();
-                        } else {
-                            newPassword = new char[0];
+                        VirtualFileWrapper virtualFileWrapper = fileSaverDialog.save("newCertificate");
+                        if (virtualFileWrapper != null) {
+                            virtualFile = virtualFileWrapper.getVirtualFile(true);
+                            String password = JOptionPane.showInputDialog("请输入证书密码,不输入或者点取消则默认无密码");
+                            char[] newPassword;
+                            if (StringUtils.isNotBlank(password)) {
+                                newPassword = password.toCharArray();
+                            } else {
+                                newPassword = null;
+                            }
+                            String presentableUrl = virtualFile.getPresentableUrl();
+                            FileOutputStream fos = new FileOutputStream(presentableUrl);
+                            keyStore.store(fos, newPassword);
+                            fos.close();
+                            NotifyUtils.notify("另存为证书成功", project);
                         }
-                        String presentableUrl = virtualFile.getPresentableUrl();
-                        FileOutputStream fos = new FileOutputStream(presentableUrl);
-                        KeyStore targetKeyStore = CertificateUtils.convert(keyStore, virtualFile.getExtension());
-                        targetKeyStore.store(fos, newPassword);
-                        fos.close();
-                        NotifyUtils.notify("另存为证书成功", project);
+
                     } catch (Throwable err) {
                         if (virtualFile != null) {
                             FileUtil.delete(new File(virtualFile.getPresentableUrl()));
@@ -258,7 +267,7 @@ public class CertificateManagerView extends JPanel {
                         if (StringUtils.isNotBlank(password)) {
                             passwordArray = password.toCharArray();
                         } else {
-                            passwordArray = new char[0];
+                            passwordArray = null;
                         }
                         String presentableUrl = virtualFile.getPresentableUrl();
                         FileOutputStream fos = new FileOutputStream(presentableUrl);
@@ -319,11 +328,9 @@ public class CertificateManagerView extends JPanel {
         List<String> list = EnumerationUtils.toList(keyStore.aliases());
         list.sort(Comparator.comparing(Function.identity()));
         models.setItems(new ArrayList<>());
-        idGenerator.set(0);
         for (String alias : list) {
             Certificate certificate = keyStore.getCertificate(alias);
             Item item = new Item()
-                    .setId(idGenerator.incrementAndGet())
                     .setName(alias)
                     .setCertificate(certificate)
                     .setType(certificate.getType())
@@ -391,7 +398,6 @@ public class CertificateManagerView extends JPanel {
      */
     private void loadCertificate(VirtualFile virtualFile) {
         try {
-            idGenerator.set(0);
             this.keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
             if (virtualFile == null) {
                 isNew = true;
@@ -409,7 +415,6 @@ public class CertificateManagerView extends JPanel {
                 for (String alias : list) {
                     Certificate certificate = this.keyStore.getCertificate(alias);
                     Item item = new Item()
-                            .setId(idGenerator.incrementAndGet())
                             .setName(alias)
                             .setType(certificate.getType())
                             .setPublicKey(certificate.getPublicKey(), StandardCharsets.UTF_8)
@@ -426,7 +431,6 @@ public class CertificateManagerView extends JPanel {
 
     private JComponent createMainPanel() {
         this.models = new ListTableModel<>(
-                ItemColumn.create("Id", Item::getId),
                 ItemColumn.create("证书名称", Item::getName),
                 ItemColumn.create("证书类型", Item::getType),
                 ItemColumn.create("加密算法", Item::getAlgorithm)
@@ -471,14 +475,15 @@ public class CertificateManagerView extends JPanel {
 //        this.tableView.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         DefaultActionGroup group = new DefaultActionGroup();
         group.add(new ShowDetailAction(tableView, models, project));
-        group.add(new DeleteCertificateAction(tableView, models, project, () -> this.keyStore,() -> {
+        group.add(new DeleteCertificateAction(tableView, models, project, () -> this.keyStore, () -> {
             try {
                 refreshTable();
             } catch (Throwable e) {
-                NotifyUtils.notify("删除证书失败,错误信息: " + e.getMessage(),project);
+                NotifyUtils.notify("删除证书失败,错误信息: " + e.getMessage(), project);
             }
         }));
         group.add(new ExportCertificateAction(tableView, models, project, () -> this.keyStore, () -> passwordArray));
+        group.add(new ExportPrivateKeyAction(tableView, models, project, () -> this.keyStore, () -> passwordArray));
         ActionPopupMenu popupMenu = ActionManager.getInstance().createActionPopupMenu("操作", group);
 //        ListPopup listPopup = JBPopupFactory.getInstance().createActionGroupPopup("操作", group, DataContext.EMPTY_CONTEXT, JBPopupFactory.ActionSelectionAid.MNEMONICS, true);
         this.tableView.setComponentPopupMenu(popupMenu.getComponent());
