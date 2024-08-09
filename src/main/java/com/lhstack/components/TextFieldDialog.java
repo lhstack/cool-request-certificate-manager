@@ -27,7 +27,7 @@ public class TextFieldDialog extends JDialog {
                 return editor;
             }
         };
-        this.setEnabled(false);
+        languageTextField.setEnabled(false);
         JBScrollPane scrollPane = new JBScrollPane(languageTextField);
         this.setContentPane(scrollPane);
     }
