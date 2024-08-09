@@ -12,7 +12,6 @@ import com.lhstack.utils.NotifyUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
 
-import javax.swing.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.function.Supplier;
@@ -42,10 +41,6 @@ public class ExportCertificateAction extends AnAction {
         if(virtualFileWrapper != null) {
             VirtualFile virtualFile = null;
             if (virtualFileWrapper.exists()) {
-                int result = JOptionPane.showConfirmDialog(null, "文件已存在,是否覆盖继续导出","警告",JOptionPane.OK_CANCEL_OPTION);
-                if (result == JOptionPane.CANCEL_OPTION) {
-                    return ;
-                }
                 virtualFile = virtualFileWrapper.getVirtualFile();
             }else {
                 virtualFile = virtualFileWrapper.getVirtualFile(true);
