@@ -48,7 +48,7 @@ public class ExportCertificateAction extends AnAction {
             NotifyUtils.notify("导出证书内容为空,请先生成或者导入证书",project);
             return ;
         }
-        String dynamicExtensions = Objects.equals(type,0) ? "crt" : "pkcs8";
+        String dynamicExtensions = Objects.equals(type,0) ? "crt" : "key";
         FileSaverDialog fileSaverDialog = FileChooser.chooseSaveFile("导出证书", project, "pem",dynamicExtensions);
         VirtualFileWrapper virtualFileWrapper = fileSaverDialog.save(this.exportFileName);
         if(virtualFileWrapper != null) {
@@ -67,7 +67,7 @@ public class ExportCertificateAction extends AnAction {
                         Certificate certificate = CertificateFactory.getInstance("X.509").generateCertificate(new ByteArrayInputStream(text.getBytes(StandardCharsets.UTF_8)));
                         Files.write(virtualFile.toNioPath(),certificate.getEncoded());
                         break;
-                    case "pkcs8":
+                    case "key":
                         PrivateKey privateKey = PemUtils.readPrivateKey(text);
                         if(privateKey != null){
                             Files.write(virtualFile.toNioPath(),new PKCS8EncodedKeySpec(privateKey.getEncoded()).getEncoded());
